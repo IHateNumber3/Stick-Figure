@@ -10,6 +10,7 @@ namespace StickFigure;
 public partial class DesktopOverlayWindow : Window
 {
     private readonly List<ProceduralStickman> _stickmen = new();
+    private readonly AgentWorld _world = new();
     private HwndSource? _source;
     private const int HotkeyId = 0x51F1;
     private const int WmHotkey = 0x0312;
@@ -52,7 +53,7 @@ public partial class DesktopOverlayWindow : Window
         for (int i = 0; i < 4; i++)
         {
             var x = width * (i + 1) / 5.0;
-            _stickmen.Add(new ProceduralStickman(OverlayCanvas, startX: x, walkSpeed: 48 + i * 17, personalityOffset: i, color: colors[i]));
+            _stickmen.Add(new ProceduralStickman(OverlayCanvas, startX: x, walkSpeed: 48 + i * 17, personalityOffset: i, color: colors[i], world: _world));
         }
     }
 
