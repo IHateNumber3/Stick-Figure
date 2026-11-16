@@ -4,150 +4,156 @@ using System.Linq;
 
 namespace StickFigure;
 
-public enum AgentAction { Explore, Socialize, Draw, Rest, PlayWithProp }
-public enum AgentMood { Curious, Social, Creative, Calm }
-
-public sealed record AgentGoal(AgentAction Action, double TargetX = double.NaN, ProceduralStickman? TargetAgent = null, PhysicsProp? TargetProp = null);
-
-public sealed class AgentPerception
+public enum AgentAction
 {
-    public required double X { get; init; }
-    public required double ScreenWidth { get; init; }
-    public required double EdgeDistance { get; init; }
-    public ProceduralStickman? NearestAgent { get; init; }
-    public double AgentDistance { get; init; } = double.PositiveInfinity;
-    public double AgentDeltaX { get; init; }
-    public PhysicsProp? NearestProp { get; init; }
-    public double PropDistance { get; init; } = double.PositiveInfinity;
-    public double PropDeltaX { get; init; }
-    public int NearbyAgents { get; init; }
-    public bool HasInterestingProp => NearestProp is not null && PropDistance < 360;
+    Wander, Socialize, Draw, Rest, FollowCursor, PlayWithProp, Jump, Inspect
+}
+
+public sealed class AgentTraits
+{
+    public double Curiosity { get; init; }
+    public double Sociability { get; init; }
+    public double Creativity { get; init; }
+    public double Mischief { get; init; }
+    public double Calmness { get; init; }
+
+    public static AgentTraits Generate(Random random) => new()
+    {
+        Curiosity = 0.25 + random.NextDouble() * 0.75,
+        Sociability = 0.15 + random.NextDouble() * 0.85,
+        Creativity = 0.2 + random.NextDouble() * 0.8,
+        Mischief = random.NextDouble(),
+        Calmness = 0.2 + random.NextDouble() * 0.8
+    };
+}
+
+public sealed class AgentNeeds
+{
+    public double Boredom { get; private set; } = 0.45;
+    public double Social { get; private set; } = 0.3;
+    public double Creative { get; private set; } = 0.35;
+    public double Rest { get; private set; } = 0.2;
+    public void Update(double dt, AgentAction action)
+    {
+        Boredom = Math.Clamp(Boredom + dt * 0.018, 0, 1);
+        Social = Math.Clamp(Social + dt * 0.009, 0, 1);
+        Creative = Math.Clamp(Creative + dt * 0.007, 0, 1);
+        Rest = Math.Clamp(Rest + dt * (action == AgentAction.Jump ? 0.035 : 0.003), 0, 1);
+    }
+    public void Satisfy(AgentAction action)
+    {
+        switch (action)
+        {
+            case AgentAction.Wander: Boredom = 0.12; break;
+            case AgentAction.Socialize: Social = 0.05; break;
+            case AgentAction.Draw: Creative = 0.05; Boredom = 0.2; break;
+            case AgentAction.Rest: Rest = 0.05; break;
+            case AgentAction.FollowCursor: Boredom = 0.1; break;
+            case AgentAction.PlayWithProp: Boredom = 0.08; break;
+            case AgentAction.Jump: Boredom = 0.15; break;
+            case AgentAction.Inspect: Boredom = 0.15; break;
+        }
+    }
 }
 
 public sealed class AgentMemory
 {
-    private readonly Queue<AgentAction> _recentActions = new();
-    private readonly Dictionary<AgentAction, double> _preferences = Enum.GetValues<AgentAction>().ToDictionary(a => a, _ => 1.0);
-    public double Boredom { get; private set; } = 0.25;
-    public double SocialNeed { get; private set; } = 0.4;
-    public double CreativityNeed { get; private set; } = 0.35;
-    public AgentAction LastAction { get; private set; } = AgentAction.Explore;
-    public int DecisionsMade { get; private set; }
+    private readonly Queue<AgentAction> _recent = new();
+    private readonly Dictionary<AgentAction, double> _reward = Enum.GetValues<AgentAction>().ToDictionary(a => a, _ => 1.0);
+    private readonly Queue<double> _visitedX = new();
+    public int Decisions { get; private set; }
+    public AgentAction LastAction { get; private set; } = AgentAction.Wander;
 
-    public double RepetitionPenalty(AgentAction action)
-    {
-        int repeats = _recentActions.Count(a => a == action);
-        return repeats * 0.24;
-    }
+    public double Repetition(AgentAction action) => _recent.Count(a => a == action) * 0.22;
+    public double Preference(AgentAction action) => _reward[action];
 
-    public void RecordDecision(AgentAction action)
+    public void RememberDecision(AgentAction action)
     {
         LastAction = action;
-        DecisionsMade++;
-        _recentActions.Enqueue(action);
-        while (_recentActions.Count > 5) _recentActions.Dequeue();
-        Boredom = Math.Clamp(Boredom + 0.13, 0, 1);
-        SocialNeed = Math.Clamp(SocialNeed + 0.06, 0, 1);
-        CreativityNeed = Math.Clamp(CreativityNeed + 0.05, 0, 1);
+        Decisions++;
+        _recent.Enqueue(action);
+        while (_recent.Count > 6) _recent.Dequeue();
     }
 
-    public void RecordOutcome(AgentAction action, bool successful)
+    public void RememberPosition(double x)
     {
-        double change = successful ? 0.12 : -0.08;
-        _preferences[action] = Math.Clamp(_preferences[action] + change, 0.55, 1.8);
-        switch (action)
-        {
-            case AgentAction.Socialize: SocialNeed = successful ? 0.08 : Math.Min(1, SocialNeed + 0.12); break;
-            case AgentAction.Draw: CreativityNeed = successful ? 0.05 : Math.Min(1, CreativityNeed + 0.1); break;
-            case AgentAction.Rest: Boredom = successful ? 0.05 : Math.Min(1, Boredom + 0.1); break;
-            default: Boredom = successful ? 0.15 : Math.Min(1, Boredom + 0.1); break;
-        }
+        _visitedX.Enqueue(x);
+        while (_visitedX.Count > 8) _visitedX.Dequeue();
     }
 
-    public double Preference(AgentAction action) => _preferences[action];
+    public double Familiarity(double x) =>
+        _visitedX.Count == 0 ? 0 : _visitedX.Count(v => Math.Abs(v - x) < 100) / (double)_visitedX.Count;
+
+    public void Learn(AgentAction action, bool success)
+    {
+        _reward[action] = Math.Clamp(_reward[action] + (success ? 0.08 : -0.06), 0.55, 1.65);
+    }
 }
 
+public sealed record AgentPerception(
+    double ScreenWidth,
+    double ScreenHeight,
+    double SelfX,
+    StickmanAgent? NearestAgent,
+    double AgentDistance,
+    double AgentDeltaX,
+    PhysicsProp? NearestProp,
+    double PropDistance,
+    double PropDeltaX,
+    double CursorX,
+    double CursorY,
+    bool CursorAvailable);
+
+public sealed record AgentGoal(AgentAction Action, double TargetX, StickmanAgent? TargetAgent = null, PhysicsProp? TargetProp = null);
+
+/// <summary>Scores possible intentions from needs, personality, memory and current surroundings.</summary>
 public sealed class AgentBrain
 {
-    private readonly double _socialTrait, _creativeTrait, _curiosityTrait, _calmTrait;
     private readonly Random _random;
-    private AgentGoal _currentGoal = new(AgentAction.Explore);
-    public AgentGoal CurrentGoal => _currentGoal;
-    public int DecisionsMade { get; private set; }
+    public AgentBrain(int seed) => _random = new Random(seed);
 
-    public AgentBrain(int personalitySeed)
+    public AgentGoal Choose(StickmanAgent agent, AgentPerception p)
     {
-        _random = new Random(unchecked(Environment.TickCount * 31 + personalitySeed * 7919));
-        _socialTrait = 0.25 + _random.NextDouble() * 0.75;
-        _creativeTrait = 0.25 + _random.NextDouble() * 0.75;
-        _curiosityTrait = 0.25 + _random.NextDouble() * 0.75;
-        _calmTrait = 0.25 + _random.NextDouble() * 0.75;
-    }
-
-    public AgentGoal Decide(AgentPerception p, AgentMemory memory)
-    {
+        var t = agent.Traits;
+        var n = agent.Needs;
+        var m = agent.Memory;
         var scores = new Dictionary<AgentAction, double>
         {
-            [AgentAction.Explore] = _curiosityTrait * (0.35 + memory.Boredom) * memory.Preference(AgentAction.Explore),
-            [AgentAction.Socialize] = p.NearestAgent is null ? 0.02 : _socialTrait * (0.25 + memory.SocialNeed) * (p.AgentDistance < 520 ? 1.2 : 0.45) * memory.Preference(AgentAction.Socialize),
-            [AgentAction.Draw] = _creativeTrait * (0.2 + memory.CreativityNeed) * memory.Preference(AgentAction.Draw),
-            [AgentAction.Rest] = _calmTrait * (0.15 + (1 - memory.Boredom) * 0.35) * memory.Preference(AgentAction.Rest),
-            [AgentAction.PlayWithProp] = p.HasInterestingProp ? _curiosityTrait * (p.PropDistance < 220 ? 1.35 : 0.8) : 0.01
+            [AgentAction.Wander] = (0.15 + n.Boredom) * t.Curiosity,
+            [AgentAction.Socialize] = p.NearestAgent is null ? 0.01 : (0.15 + n.Social) * t.Sociability * Proximity(p.AgentDistance, 500),
+            [AgentAction.Draw] = (0.15 + n.Creative) * t.Creativity,
+            [AgentAction.Rest] = n.Rest * t.Calmness,
+            [AgentAction.FollowCursor] = p.CursorAvailable ? (0.08 + t.Mischief * 0.5) * Proximity(Math.Abs(p.CursorX - p.SelfX), 700) : 0.01,
+            [AgentAction.PlayWithProp] = p.NearestProp is null ? 0.01 : (0.2 + n.Boredom) * (0.4 + t.Mischief) * Proximity(p.PropDistance, 420),
+            [AgentAction.Jump] = (0.05 + n.Boredom * 0.35) * (0.3 + t.Mischief),
+            [AgentAction.Inspect] = (0.05 + n.Boredom * 0.25) * t.Curiosity
         };
 
         foreach (var action in Enum.GetValues<AgentAction>())
-            scores[action] = Math.Max(0.01, scores[action] - memory.RepetitionPenalty(action) + _random.NextDouble() * 0.12);
+            scores[action] = Math.Max(0.005, scores[action] * m.Preference(action) - m.Repetition(action) + _random.NextDouble() * 0.035);
 
-        // Prefer leaving a crowded edge and avoid choosing a peer target from across the whole screen.
-        if (p.EdgeDistance < 90) scores[AgentAction.Explore] += 0.55;
-        if (p.NearestAgent is not null && p.AgentDistance < 150) scores[AgentAction.Socialize] += 0.35;
-
-        var chosen = scores.OrderByDescending(pair => pair.Value).First().Key;
-        _currentGoal = chosen switch
+        AgentAction chosen = scores.OrderByDescending(pair => pair.Value).First().Key;
+        double target = chosen switch
         {
-            AgentAction.Socialize when p.NearestAgent is not null => new AgentGoal(chosen, p.NearestAgent.AgentX, p.NearestAgent),
-            AgentAction.PlayWithProp when p.NearestProp is not null => new AgentGoal(chosen, p.NearestProp.CenterX, TargetProp: p.NearestProp),
-            AgentAction.Explore => new AgentGoal(chosen, RandomTarget(p)),
-            _ => new AgentGoal(chosen)
+            AgentAction.Wander => RandomTarget(p.ScreenWidth, m),
+            AgentAction.Socialize when p.NearestAgent is not null => p.NearestAgent.X,
+            AgentAction.PlayWithProp when p.NearestProp is not null => p.NearestProp.CenterX,
+            AgentAction.FollowCursor when p.CursorAvailable => p.CursorX,
+            AgentAction.Inspect => _random.Next(2) == 0 ? 24 : p.ScreenWidth - 24,
+            _ => p.SelfX
         };
-        memory.RecordDecision(chosen);
-        DecisionsMade++;
-        return _currentGoal;
+        m.RememberDecision(chosen);
+        return new AgentGoal(chosen, target, p.NearestAgent, p.NearestProp);
     }
 
-    private double RandomTarget(AgentPerception p)
+    private static double Proximity(double distance, double range) =>
+        double.IsFinite(distance) ? Math.Clamp(1 - distance / range, 0.08, 1) : 0.08;
+
+    private double RandomTarget(double width, AgentMemory memory)
     {
-        double margin = Math.Min(120, p.ScreenWidth * 0.12);
-        return margin + _random.NextDouble() * Math.Max(1, p.ScreenWidth - margin * 2);
-    }
-
-    public void ReportOutcome(AgentMemory memory, bool successful) => memory.RecordOutcome(_currentGoal.Action, successful);
-}
-
-public sealed class AgentWorld
-{
-    private readonly List<ProceduralStickman> _agents = new();
-    public void Register(ProceduralStickman agent) { if (!_agents.Contains(agent)) _agents.Add(agent); }
-    public void Unregister(ProceduralStickman agent) => _agents.Remove(agent);
-
-    public AgentPerception Perceive(ProceduralStickman self, double x, double width, IReadOnlyList<PhysicsProp> props)
-    {
-        var peers = _agents.Where(a => !ReferenceEquals(a, self) && !a.IsDisposed)
-            .Select(a => (Agent: a, Delta: a.AgentX - x))
-            .OrderBy(item => Math.Abs(item.Delta)).ToArray();
-        var prop = props.Where(p => !p.IsHeld)
-            .Select(p => (Prop: p, Delta: p.CenterX - x))
-            .OrderBy(item => Math.Abs(item.Delta)).FirstOrDefault();
-        return new AgentPerception
-        {
-            X = x, ScreenWidth = width, EdgeDistance = Math.Min(x, width - x),
-            NearestAgent = peers.Length > 0 ? peers[0].Agent : null,
-            AgentDistance = peers.Length > 0 ? Math.Abs(peers[0].Delta) : double.PositiveInfinity,
-            AgentDeltaX = peers.Length > 0 ? peers[0].Delta : 0,
-            NearbyAgents = peers.Count(item => Math.Abs(item.Delta) < 420),
-            NearestProp = prop.Prop,
-            PropDistance = prop.Prop is null ? double.PositiveInfinity : Math.Abs(prop.Delta),
-            PropDeltaX = prop.Prop is null ? 0 : prop.Delta
-        };
+        double target = 40 + _random.NextDouble() * Math.Max(1, width - 80);
+        for (int i = 0; i < 4 && memory.Familiarity(target) > 0.35; i++)
+            target = 40 + _random.NextDouble() * Math.Max(1, width - 80);
+        return target;
     }
 }
