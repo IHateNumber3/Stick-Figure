@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Collections.Generic;
 
 namespace StickFigure;
 
@@ -13,6 +14,7 @@ namespace StickFigure;
 public sealed class ProceduralStickman : IDisposable
 {
     private readonly Canvas _canvas;
+    private readonly IReadOnlyList<PhysicsProp> _props;
     private readonly Ellipse _head;
     private readonly Ellipse[] _joints;
     private readonly Line _torso, _upperArmL, _lowerArmL, _upperArmR, _lowerArmR;
@@ -33,9 +35,10 @@ public sealed class ProceduralStickman : IDisposable
     private const double WalkSpeed = 74;
     private const double Gravity = 900;
 
-    public ProceduralStickman(Canvas canvas)
+    public ProceduralStickman(Canvas canvas, IReadOnlyList<PhysicsProp>? props = null)
     {
         _canvas = canvas;
+        _props = props ?? System.Array.Empty<PhysicsProp>();
         _x = Math.Max(100, canvas.ActualWidth / 2);
         _head = new Ellipse
         {
@@ -100,6 +103,24 @@ public sealed class ProceduralStickman : IDisposable
         else
         {
             _phase += dt * 1.5;
+        }
+
+        // Bump into nearby props while walking; props receive a physical impulse.
+        if (_walking)
+        {
+            foreach (var prop in _props)
+            {
+                double dx = prop.CenterX - _x;
+                double dy = prop.CenterY - (_y + 125);
+                if (Math.Abs(dx) < 43 && Math.Abs(dy) < 55)
+                {
+                    _direction = dx >= 0 ? -1 : 1;
+                    prop.Push(dx >= 0 ? 1 : -1);
+                    _walking = false;
+                    _decisionTime = 0.8;
+                    break;
+                }
+            }
         }
 
         double halfWidth = 42;
