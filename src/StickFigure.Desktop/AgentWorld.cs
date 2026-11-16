@@ -19,6 +19,8 @@ public sealed class AgentWorld : IDisposable
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly List<StickmanAgent> _agents = new();
     private readonly List<PhysicsProp> _props = new();
+    private readonly Stopwatch _environmentRefreshClock = Stopwatch.StartNew();
+    public DesktopEnvironment Desktop { get; } = new();
     private TimeSpan _lastTick;
     private int _nextName = 1;
     private int _seed = Environment.TickCount;
@@ -43,6 +45,7 @@ public sealed class AgentWorld : IDisposable
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _timer.Tick += OnTick;
         _lastTick = _clock.Elapsed;
+        Desktop.Refresh();
         _timer.Start();
     }
 
@@ -95,12 +98,18 @@ public sealed class AgentWorld : IDisposable
             prop.Prop,
             prop.Prop is null ? double.PositiveInfinity : Math.Abs(prop.Delta),
             prop.Prop is null ? 0 : prop.Delta,
-            CursorX, CursorY, CursorAvailable);
+            CursorX, CursorY, CursorAvailable,
+            Desktop.FindNearestSurface(self.X));
     }
 
     private void OnTick(object? sender, EventArgs e)
     {
         var now = _clock.Elapsed;
+        if (_environmentRefreshClock.ElapsedMilliseconds >= 650)
+        {
+            Desktop.Refresh();
+            _environmentRefreshClock.Restart();
+        }
         double dt = Math.Clamp((now - _lastTick).TotalSeconds, 0.001, 0.05);
         _lastTick = now;
         foreach (var agent in _agents)
