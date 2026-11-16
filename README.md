@@ -1,28 +1,26 @@
 # Stick-Figure
 
-A Windows desktop sandbox for procedural, hand-drawn stick figures.
+A Windows desktop world for autonomous, hand-drawn stick-figure characters.
 
-## Current prototype
+## Rebuilt foundation
 
-- WPF desktop application targeting .NET 8.
-- Dark drawing workspace with freehand stroke input.
-- Articulated stickman renderer with action-driven movement and pose animation.
-- Draggable crate props with gravity, friction, wall bounce and mouse interaction.
-- Agent architecture: utility-scored goal selection, environmental perception, short-term action memory, adaptive action preferences and an animation controller.
-- Agents can explore toward chosen destinations, approach and acknowledge nearby agents, draw, rest and seek nearby props.
-- Desktop mode creates four independently deciding agents sharing one perception world; they can notice and approach one another rather than following a single shared script.
-- Agents can approach a crate, pick it up, carry it and throw it.
-- GitHub Actions builds the solution on Windows.
+The prototype has been reorganized around a shared simulation world instead of one monolithic character script.
 
-This is a lightweight, local agent simulation—not a neural language model, consciousness or general-purpose intelligence. Decisions are made by utility scoring over perceived surroundings, needs, personality traits and recent action history. Memory adjusts action preferences based on outcomes; it does not train a neural network.
+- **World simulation:** one central clock updates every creature. Characters do not own independent animation timers.
+- **Creature model:** each stickman has a stable identity, generated personality traits, changing needs, memory, a current intention and physical state.
+- **Decision system:** an agent scores possible intentions using its personality, needs, nearby creatures, objects, cursor position and recent behaviour.
+- **Memory:** recent actions are tracked, repeated choices are discouraged, visited locations are remembered and action preferences adjust from outcomes.
+- **Perception:** agents can notice the nearest other creature, nearby physics props and the desktop cursor.
+- **Action layer:** wandering, socializing, drawing, resting, following the cursor, playing with props, jumping and inspecting the screen.
+- **Animation layer:** procedural poses are derived from the current action and movement state. Animation does not choose what the creature wants to do.
+- **Renderer:** line segments, joints, head and persistent freehand strokes are rendered separately from decision-making.
+- **Desktop mode:** a transparent, click-through overlay creates a group of creatures and feeds them the real desktop cursor position.
 
-## Planned next milestones
+This is a local autonomous-agent simulation, not a neural network or conscious intelligence. The architecture is designed so perception, decisions, memory, movement and rendering can evolve independently.
 
-1. **Drawing engine:** smoothing, curves, eraser, selection, undo/redo and a reusable stroke model.
-2. **Shape recognition:** classify simple user-drawn strokes (lines, circles, rectangles) and convert them into editable scene objects.
-3. **Character rig:** inverse kinematics, hand grips, expressive poses and more natural motion.
-4. **Richer agent behaviour:** additional goals, object manipulation, social behaviours and event-driven reactions.
-5. **Desktop interaction:** opt-in, user-controlled interaction with selected Windows applications and cursor events.
+## Current limitations
+
+This is a new foundation, not a finished Desktop Goose equivalent. The current world senses the cursor and other agents, and can interact with simple physics props. It does not yet understand arbitrary application UI, read window contents, manipulate windows, or perform complex social animations. Those require dedicated perception and interaction modules.
 
 ## Build
 
