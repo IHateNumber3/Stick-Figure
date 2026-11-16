@@ -62,6 +62,9 @@ public sealed class AgentWorld : IDisposable
         if (!_props.Contains(prop)) _props.Add(prop);
     }
 
+    public void UnregisterProp(PhysicsProp prop) => _props.Remove(prop);
+    public void ClearProps() => _props.Clear();
+
     public void SetCursor(double x, double y, bool available = true)
     {
         CursorX = x;
