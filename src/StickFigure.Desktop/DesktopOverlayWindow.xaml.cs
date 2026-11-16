@@ -7,7 +7,7 @@ namespace StickFigure;
 
 public partial class DesktopOverlayWindow : Window
 {
-    private ProceduralStickman? _stickman;
+    private readonly List<ProceduralStickman> _stickmen = new();
     private HwndSource? _source;
     private const int HotkeyId = 0x51F1;
     private const int WmHotkey = 0x0312;
@@ -29,7 +29,7 @@ public partial class DesktopOverlayWindow : Window
         Width = SystemParameters.VirtualScreenWidth;
         Height = SystemParameters.VirtualScreenHeight;
         SourceInitialized += OnSourceInitialized;
-        Closed += (_, _) => _stickman?.Dispose();
+        Closed += (_, _) => { foreach (var stickman in _stickmen) stickman.Dispose(); _stickmen.Clear(); };
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -40,7 +40,13 @@ public partial class DesktopOverlayWindow : Window
         _source = HwndSource.FromHwnd(handle);
         _source?.AddHook(WindowProc);
         RegisterHotKey(handle, HotkeyId, ModControl | ModShift, VkF12);
-        _stickman = new ProceduralStickman(OverlayCanvas);
+        var colors = new[] { Color.FromRgb(235,243,250), Color.FromRgb(0,212,255), Color.FromRgb(0,255,153), Color.FromRgb(255,190,90) };
+        var width = OverlayCanvas.ActualWidth;
+        for (int i = 0; i < 4; i++)
+        {
+            var x = width * (i + 1) / 5.0;
+            _stickmen.Add(new ProceduralStickman(OverlayCanvas, startX: x, walkSpeed: 48 + i * 17, personalityOffset: i, color: colors[i]));
+        }
     }
 
     private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
