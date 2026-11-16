@@ -16,7 +16,7 @@ public sealed class PhysicsProp : IDisposable
     private readonly DispatcherTimer _timer;
     private bool _dragging;
     private bool _held;
-    private Point _dragOffset;
+    private Vector _dragOffset;
     private bool _disposed;
     private double _x, _y, _vx, _vy;
 
