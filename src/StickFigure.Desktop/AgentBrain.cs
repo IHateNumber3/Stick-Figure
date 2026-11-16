@@ -140,7 +140,8 @@ public sealed class AgentBrain
             AgentAction.Socialize when p.NearestAgent is not null => p.NearestAgent.X,
             AgentAction.PlayWithProp when p.NearestProp is not null => p.NearestProp.CenterX,
             AgentAction.FollowCursor when p.CursorAvailable => p.CursorX,
-            AgentAction.Inspect when p.NearestSurface is not null => p.NearestSurface.CenterX,\n            AgentAction.Inspect => _random.Next(2) == 0 ? 24 : p.ScreenWidth - 24,
+            AgentAction.Inspect when p.NearestSurface is not null => p.NearestSurface.CenterX,
+            AgentAction.Inspect => _random.Next(2) == 0 ? 24 : p.ScreenWidth - 24,
             _ => p.SelfX
         };
         m.RememberDecision(chosen);
