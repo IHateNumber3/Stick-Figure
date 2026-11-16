@@ -1,7 +1,7 @@
 <Window x:Class="StickFigure.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Stick-Figure" Width="1120" Height="720"
+        Title="Stick-Figure — Living Desktop Creatures" Width="1120" Height="720"
         MinWidth="760" MinHeight="500"
         Background="{StaticResource WindowBackground}"
         Foreground="#EAF2F8"
@@ -16,12 +16,12 @@
         <DockPanel Grid.Row="0" Margin="2,0,2,14">
             <StackPanel DockPanel.Dock="Left">
                 <TextBlock Text="STICK-FIGURE" FontSize="20" FontWeight="Bold"/>
-                <TextBlock Text="Procedural character playground" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,3,0,0"/>
+                <TextBlock Text="Autonomous stick-figure world" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,3,0,0"/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="DesktopButton" Content="🖥 Desktop mode" Click="DesktopButton_Click" Padding="14,8" Margin="0,0,8,0"/>
                 <Button x:Name="PropButton" Content="＋  Crate" Click="PropButton_Click" Padding="14,8" Margin="0,0,8,0"/>
-                <Button x:Name="SpawnButton" Content="＋  Stickman" Click="SpawnButton_Click" Padding="16,8" Margin="0,0,8,0"/>
+                <Button x:Name="SpawnButton" Content="＋  Add creature" Click="SpawnButton_Click" Padding="16,8" Margin="0,0,8,0"/>
                 <Button x:Name="PenButton" Content="✎  Draw" Click="PenButton_Click" Padding="16,8" Margin="0,0,8,0"/>
                 <Button x:Name="ClearButton" Content="Clear canvas" Click="ClearButton_Click" Padding="14,8"/>
             </StackPanel>
@@ -34,14 +34,14 @@
                         MouseMove="DrawingCanvas_MouseMove"
                         MouseLeftButtonUp="DrawingCanvas_MouseLeftButtonUp"/>
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" x:Name="EmptyHint">
-                    <TextBlock Text="Draw something." FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#DDE7F0"/>
-                    <TextBlock Text="Use the mouse to sketch freehand strokes" Margin="0,8,0,0" Foreground="#788695" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Create a living world." FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#DDE7F0"/>
+                    <TextBlock Text="Add creatures, draw objects and watch them interact" Margin="0,8,0,0" Foreground="#788695" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <DockPanel Grid.Row="2" Margin="2,12,2,0">
-            <TextBlock x:Name="StatusText" Text="READY  •  FREE DRAWING" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+            <TextBlock x:Name="StatusText" Text="WORLD READY  •  AUTONOMOUS AGENTS" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
             <TextBlock DockPanel.Dock="Right" Text=".NET 8  /  WPF" Foreground="#536170" FontSize="11"/>
         </DockPanel>
     </Grid>
