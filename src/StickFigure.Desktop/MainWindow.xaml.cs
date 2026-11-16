@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -10,16 +11,16 @@ public partial class MainWindow : Window
 {
     private Polyline? _activeStroke;
     private bool _isDrawing;
-    private ProceduralStickman? _stickman;
     private readonly List<PhysicsProp> _props = new();
     private readonly List<PhysicsOrb> _orbs = new();
-    private readonly AgentWorld _agentWorld = new();
+    private readonly AgentWorld _world;
     private DesktopOverlayWindow? _overlay;
 
     public MainWindow()
     {
         InitializeComponent();
-        SizeChanged += (_, _) => _stickman?.Render();
+        _world = new AgentWorld(DrawingCanvas);
+        Closed += (_, _) => { _world.Dispose(); foreach (var p in _props) p.Dispose(); foreach (var o in _orbs) o.Dispose(); };
     }
 
     private void DrawingCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
         DrawingCanvas.CaptureMouse();
         EmptyHint.Visibility = Visibility.Collapsed;
         var point = e.GetPosition(DrawingCanvas);
+        _world.SetCursor(point.X, point.Y);
         _activeStroke = new Polyline
         {
             Stroke = new SolidColorBrush(Color.FromRgb(235, 243, 250)),
@@ -44,8 +46,9 @@ public partial class MainWindow : Window
 
     private void DrawingCanvas_MouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isDrawing || _activeStroke is null || e.LeftButton != MouseButtonState.Pressed) return;
         var point = e.GetPosition(DrawingCanvas);
+        _world.SetCursor(point.X, point.Y);
+        if (!_isDrawing || _activeStroke is null || e.LeftButton != MouseButtonState.Pressed) return;
         if ((point - _activeStroke.Points[^1]).Length >= 1.2)
             _activeStroke.Points.Add(point);
     }
@@ -69,7 +72,8 @@ public partial class MainWindow : Window
                         bounds.Left + (bounds.Width - PhysicsProp.Width) / 2,
                         bounds.Top + (bounds.Height - PhysicsProp.Height) / 2);
                     _props.Add(prop);
-                    StatusText.Text = "SHAPE RECOGNIZED  •  PHYSICS CRATE";
+                    _world.RegisterProp(prop);
+                    StatusText.Text = "OBJECT CREATED  •  AGENTS CAN INTERACT";
                 }
                 else
                 {
@@ -78,7 +82,7 @@ public partial class MainWindow : Window
                         bounds.Top + bounds.Height / 2,
                         Math.Min(bounds.Width, bounds.Height) * 0.82);
                     _orbs.Add(orb);
-                    StatusText.Text = "SHAPE RECOGNIZED  •  BOUNCING ORB";
+                    StatusText.Text = "BOUNCING ORB CREATED";
                 }
             }
             else StatusText.Text = $"FREEHAND  •  {DrawingCanvas.Children.Count} ELEMENTS";
@@ -95,31 +99,30 @@ public partial class MainWindow : Window
 
     private void SpawnButton_Click(object sender, RoutedEventArgs e)
     {
-        _stickman?.Dispose();
-        _stickman = new ProceduralStickman(DrawingCanvas, _props, world: _agentWorld);
+        var agent = _world.AddAgent();
         EmptyHint.Visibility = Visibility.Collapsed;
-        StatusText.Text = "AGENT  •  GOAL-DRIVEN BEHAVIOUR + MEMORY";
+        StatusText.Text = $"{agent.Name.ToUpperInvariant()} JOINED  •  {_world.Agents.Count} AGENTS";
     }
 
     private void PropButton_Click(object sender, RoutedEventArgs e)
     {
         var prop = new PhysicsProp(DrawingCanvas, 150 + (_props.Count % 5) * 65, 40);
         _props.Add(prop);
+        _world.RegisterProp(prop);
         EmptyHint.Visibility = Visibility.Collapsed;
-        StatusText.Text = "CRATE ADDED  •  DRAG IT OR LET THE STICKMAN PUSH IT";
+        StatusText.Text = "OBJECT ADDED  •  AGENTS CAN NOTICE AND PUSH IT";
     }
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
-        _stickman?.Dispose();
-        _stickman = null;
+        _world.ClearAgents();
         foreach (var prop in _props) prop.Dispose();
         _props.Clear();
         foreach (var orb in _orbs) orb.Dispose();
         _orbs.Clear();
         DrawingCanvas.Children.Clear();
         EmptyHint.Visibility = Visibility.Visible;
-        StatusText.Text = "READY  •  CANVAS CLEARED";
+        StatusText.Text = "WORLD RESET";
     }
 
     private void DesktopButton_Click(object sender, RoutedEventArgs e)
@@ -129,7 +132,7 @@ public partial class MainWindow : Window
             _overlay.Close();
             _overlay = null;
             DesktopButton.Content = "🖥 Desktop mode";
-            StatusText.Text = "DESKTOP COMPANION STOPPED";
+            StatusText.Text = "DESKTOP WORLD STOPPED";
             return;
         }
 
@@ -141,7 +144,7 @@ public partial class MainWindow : Window
         };
         _overlay.Show();
         DesktopButton.Content = "✕ Stop desktop";
-        StatusText.Text = "DESKTOP COMPANION RUNNING  •  Ctrl+Shift+F12 TO CLOSE";
+        StatusText.Text = "DESKTOP WORLD RUNNING  •  Ctrl+Shift+F12 TO CLOSE";
     }
 
     private void PenButton_Click(object sender, RoutedEventArgs e)
