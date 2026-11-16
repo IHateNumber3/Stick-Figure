@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private ProceduralStickman? _stickman;
     private readonly List<PhysicsProp> _props = new();
     private readonly List<PhysicsOrb> _orbs = new();
+    private readonly AgentWorld _agentWorld = new();
     private DesktopOverlayWindow? _overlay;
 
     public MainWindow()
@@ -95,9 +96,9 @@ public partial class MainWindow : Window
     private void SpawnButton_Click(object sender, RoutedEventArgs e)
     {
         _stickman?.Dispose();
-        _stickman = new ProceduralStickman(DrawingCanvas, _props);
+        _stickman = new ProceduralStickman(DrawingCanvas, _props, world: _agentWorld);
         EmptyHint.Visibility = Visibility.Collapsed;
-        StatusText.Text = "STICKMAN  •  AUTONOMOUS WALK + OBJECT INTERACTION";
+        StatusText.Text = "AGENT  •  GOAL-DRIVEN BEHAVIOUR + MEMORY";
     }
 
     private void PropButton_Click(object sender, RoutedEventArgs e)
