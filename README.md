@@ -2,32 +2,31 @@
 
 A Windows desktop sandbox for procedural, hand-drawn stick figures.
 
-## Current milestone
+## Current prototype
 
-**Milestone 0 — project foundation**
 - WPF desktop application targeting .NET 8.
 - Dark drawing workspace with freehand stroke input.
-- Stroke data is stored as editable vector points rather than flattened sprites.
-- A procedural stickman can be spawned; its head, torso, arms and legs are vector shapes updated by a 60 Hz idle animation loop.
-- A Windows GitHub Actions workflow builds the solution on pushes and pull requests.
-- Clear canvas and basic project structure.
+- Vector stickman with articulated arms and legs, idle/walk animation, gravity and floor collision.
+- Draggable crate props with gravity, friction, wall bounce and mouse interaction.
+- Autonomous crate interaction: the stickman approaches a nearby crate, grabs it, carries it briefly and throws it.
+- Autonomous doodling: while idle, the stickman occasionally reaches out and draws a small circular sketch directly onto the canvas.
+- GitHub Actions builds the solution on Windows.
 
-## Planned milestones
+These behaviours are procedural simulations. The stickman does not have consciousness or general-purpose AI.
 
-1. **Drawing engine:** pressure-ready stroke model, smoothing, curves, eraser, selection and undo/redo.
-2. **Stick-figure rig:** head, torso, limbs, joints and inverse-kinematics helpers.
-3. **Procedural animation:** walk, idle, reach, fall and expressive poses.
-4. **Autonomous actors:** needs, traits, memory and a decision loop (simulated behaviour, not consciousness).
+## Planned next milestones
+
+1. **Drawing engine:** smoothing, curves, eraser, selection, undo/redo and a reusable stroke model.
+2. **Shape recognition:** classify simple user-drawn strokes (lines, circles, rectangles) and convert them into editable scene objects.
+3. **Character rig:** inverse kinematics, hand grips, expressive poses and more natural motion.
+4. **Behaviour system:** traits, goals, simple memory and interactions between multiple actors.
 5. **Desktop interaction:** opt-in, user-controlled interaction with selected Windows applications.
-6. **Creation system:** turn drawings into editable animated actors and props.
 
 ## Build
 
 Requirements: Windows 10/11 and the .NET 8 SDK.
 
 ```powershell
-dotnet build StickFigure.sln
+dotnet build StickFigure.sln --configuration Release
 dotnet run --project src/StickFigure.Desktop/StickFigure.Desktop.csproj
 ```
-
-The first prototype is intentionally small. Real application automation, autonomous behaviour and multi-character simulation are not implemented yet.
