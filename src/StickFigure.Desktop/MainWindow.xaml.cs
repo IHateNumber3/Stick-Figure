@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -10,6 +11,7 @@ public partial class MainWindow : Window
     private Polyline? _activeStroke;
     private bool _isDrawing;
     private ProceduralStickman? _stickman;
+    private readonly List<PhysicsProp> _props = new();
 
     public MainWindow()
     {
@@ -19,6 +21,7 @@ public partial class MainWindow : Window
 
     private void DrawingCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.OriginalSource is Shape) return;
         _isDrawing = true;
         DrawingCanvas.CaptureMouse();
         EmptyHint.Visibility = Visibility.Collapsed;
@@ -26,7 +29,7 @@ public partial class MainWindow : Window
         _activeStroke = new Polyline
         {
             Stroke = new SolidColorBrush(Color.FromRgb(235, 243, 250)),
-            StrokeThickness = 3.0,
+            StrokeThickness = 3,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap = PenLineCap.Round,
             StrokeLineJoin = PenLineJoin.Round
@@ -38,11 +41,9 @@ public partial class MainWindow : Window
 
     private void DrawingCanvas_MouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isDrawing || _activeStroke is null || e.LeftButton != MouseButtonState.Pressed)
-            return;
+        if (!_isDrawing || _activeStroke is null || e.LeftButton != MouseButtonState.Pressed) return;
         var point = e.GetPosition(DrawingCanvas);
-        var previous = _activeStroke.Points[^1];
-        if ((point - previous).Length >= 1.2)
+        if ((point - _activeStroke.Points[^1]).Length >= 1.2)
             _activeStroke.Points.Add(point);
     }
 
@@ -58,15 +59,25 @@ public partial class MainWindow : Window
     private void SpawnButton_Click(object sender, RoutedEventArgs e)
     {
         _stickman?.Dispose();
-        _stickman = new ProceduralStickman(DrawingCanvas);
+        _stickman = new ProceduralStickman(DrawingCanvas, _props);
         EmptyHint.Visibility = Visibility.Collapsed;
-        StatusText.Text = "STICKMAN SPAWNED  •  PROCEDURAL IDLE ANIMATION";
+        StatusText.Text = "STICKMAN  •  AUTONOMOUS WALK + OBJECT INTERACTION";
+    }
+
+    private void PropButton_Click(object sender, RoutedEventArgs e)
+    {
+        var prop = new PhysicsProp(DrawingCanvas, 150 + (_props.Count % 5) * 65, 40);
+        _props.Add(prop);
+        EmptyHint.Visibility = Visibility.Collapsed;
+        StatusText.Text = "CRATE ADDED  •  DRAG IT OR LET THE STICKMAN PUSH IT";
     }
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
         _stickman?.Dispose();
         _stickman = null;
+        foreach (var prop in _props) prop.Dispose();
+        _props.Clear();
         DrawingCanvas.Children.Clear();
         EmptyHint.Visibility = Visibility.Visible;
         StatusText.Text = "READY  •  CANVAS CLEARED";
