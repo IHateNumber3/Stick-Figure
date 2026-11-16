@@ -102,7 +102,8 @@ public sealed record AgentPerception(
     double PropDeltaX,
     double CursorX,
     double CursorY,
-    bool CursorAvailable);
+    bool CursorAvailable,
+    DesktopSurface? NearestSurface);
 
 public sealed record AgentGoal(AgentAction Action, double TargetX, StickmanAgent? TargetAgent = null, PhysicsProp? TargetProp = null);
 
@@ -126,7 +127,7 @@ public sealed class AgentBrain
             [AgentAction.FollowCursor] = p.CursorAvailable ? (0.08 + t.Mischief * 0.5) * Proximity(Math.Abs(p.CursorX - p.SelfX), 700) : 0.01,
             [AgentAction.PlayWithProp] = p.NearestProp is null ? 0.01 : (0.2 + n.Boredom) * (0.4 + t.Mischief) * Proximity(p.PropDistance, 420),
             [AgentAction.Jump] = (0.05 + n.Boredom * 0.35) * (0.3 + t.Mischief),
-            [AgentAction.Inspect] = (0.05 + n.Boredom * 0.25) * t.Curiosity
+            [AgentAction.Inspect] = (0.05 + n.Boredom * 0.25 + (p.NearestSurface is null ? 0 : 0.35)) * t.Curiosity
         };
 
         foreach (var action in Enum.GetValues<AgentAction>())
@@ -139,7 +140,7 @@ public sealed class AgentBrain
             AgentAction.Socialize when p.NearestAgent is not null => p.NearestAgent.X,
             AgentAction.PlayWithProp when p.NearestProp is not null => p.NearestProp.CenterX,
             AgentAction.FollowCursor when p.CursorAvailable => p.CursorX,
-            AgentAction.Inspect => _random.Next(2) == 0 ? 24 : p.ScreenWidth - 24,
+            AgentAction.Inspect when p.NearestSurface is not null => p.NearestSurface.CenterX,\n            AgentAction.Inspect => _random.Next(2) == 0 ? 24 : p.ScreenWidth - 24,
             _ => p.SelfX
         };
         m.RememberDecision(chosen);
