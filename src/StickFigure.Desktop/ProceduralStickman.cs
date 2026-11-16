@@ -32,17 +32,26 @@ public sealed class ProceduralStickman : IDisposable
     private Polyline? _doodleStroke;
     private double _doodleProgress = -1;
     private double _doodleCooldown = 4;
+    private readonly double _walkSpeed;
+    private readonly double _personalityOffset;
+    private readonly Brush _ink;
 
     private const double FigureHeight = 178;
     private const double GroundMargin = 12;
-    private const double WalkSpeed = 74;
+    
     private const double Gravity = 900;
 
-    public ProceduralStickman(Canvas canvas, IReadOnlyList<PhysicsProp>? props = null)
+    public ProceduralStickman(Canvas canvas, IReadOnlyList<PhysicsProp>? props = null, double startX = double.NaN, double walkSpeed = 74, double personalityOffset = 0, Color? color = null)
     {
         _canvas = canvas;
         _props = props ?? Array.Empty<PhysicsProp>();
-        _x = Math.Max(100, canvas.ActualWidth / 2);
+        _walkSpeed = walkSpeed;
+        _personalityOffset = personalityOffset;
+        _ink = new SolidColorBrush(color ?? Color.FromRgb(235, 243, 250));
+        _x = double.IsNaN(startX) ? Math.Max(100, canvas.ActualWidth / 2) : startX;
+        _direction = personalityOffset % 2 == 0 ? 1 : -1;
+        _decisionTime = 0.4 + Math.Abs(personalityOffset) * 0.31;
+        _doodleCooldown = 1.5 + Math.Abs(personalityOffset) * 2.2;
         _head = new Ellipse
         {
             Width = 30, Height = 30, Stroke = Ink(), StrokeThickness = 3,
@@ -69,10 +78,10 @@ public sealed class ProceduralStickman : IDisposable
         Render();
     }
 
-    private static SolidColorBrush Ink() => new(Color.FromRgb(235, 243, 250));
-    private static Line Bone(double thickness) => new()
+    private Brush Ink() => _ink;
+    private Line Bone(double thickness) => new()
     {
-        Stroke = Ink(), StrokeThickness = thickness,
+        Stroke = _ink, StrokeThickness = thickness,
         StrokeStartLineCap = PenLineCap.Round,
         StrokeEndLineCap = PenLineCap.Round,
         StrokeLineJoin = PenLineJoin.Round
@@ -128,14 +137,14 @@ public sealed class ProceduralStickman : IDisposable
             if (_decisionTime <= 0)
             {
                 _walking = !_walking;
-                _decisionTime = _walking ? 2.2 : 0.65;
+                _decisionTime = (_walking ? 1.7 : 0.45) + Math.Abs(_personalityOffset) * (_walking ? 0.55 : 0.18);
                 if (_walking && Random.Shared.NextDouble() < 0.35)
                     _direction *= -1;
             }
 
             if (_walking)
             {
-                _x += _direction * WalkSpeed * dt;
+                _x += _direction * _walkSpeed * dt;
                 _phase += dt * 8.5;
             }
             else _phase += dt * 1.5;
