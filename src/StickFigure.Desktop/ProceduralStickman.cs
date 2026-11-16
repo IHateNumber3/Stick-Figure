@@ -42,6 +42,7 @@ public sealed class ProceduralStickman : IDisposable
     private double _goalTime;
     private double _targetX;
     private double _socialGestureTime;
+    private bool _goalResolved;
     public double AgentX => _x;
     public bool IsDisposed => _disposed;
     public AgentAction CurrentAction => _animation.Action;
@@ -116,7 +117,7 @@ public sealed class ProceduralStickman : IDisposable
             {
                 _heldProp.Throw(_direction * 245, -205);
                 _heldProp = null;
-                _brain.ReportOutcome(_memory, true);
+                ResolveGoal(true);
                 _goalTime = 0.2;
             }
         }
@@ -128,6 +129,7 @@ public sealed class ProceduralStickman : IDisposable
                 var perception = _world?.Perceive(this, _x, width, _props)
                     ?? new AgentPerception { X = _x, ScreenWidth = width, EdgeDistance = Math.Min(_x, width - _x) };
                 var goal = _brain.Decide(perception, _memory);
+                _goalResolved = false;
                 _animation.SetAction(goal.Action);
                 _targetX = goal.TargetX;
                 _goalTime = goal.Action switch
@@ -175,7 +177,7 @@ public sealed class ProceduralStickman : IDisposable
                                 if (_socialGestureTime > 1.2) _brain.ReportOutcome(_memory, true);
                             }
                         }
-                        else _brain.ReportOutcome(_memory, false);
+                        else ResolveGoal(false);
                     }
                     break;
                 case AgentAction.Draw:
@@ -219,6 +221,13 @@ public sealed class ProceduralStickman : IDisposable
         _animation.Update(dt, _walking);
         _phase = _animation.Phase;
         Render();
+    }
+
+    private void ResolveGoal(bool success)
+    {
+        if (_goalResolved) return;
+        _goalResolved = true;
+        _brain.ReportOutcome(_memory, success);
     }
 
     private void MoveToward(double targetX, double dt)
