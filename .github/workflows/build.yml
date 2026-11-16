@@ -19,3 +19,16 @@ jobs:
           dotnet-version: 8.0.x
       - name: Build
         run: dotnet build StickFigure.sln --configuration Release
+      - name: Publish portable Windows app
+        if: github.event_name != 'pull_request'
+        run: dotnet publish src/StickFigure.Desktop/StickFigure.Desktop.csproj --configuration Release --runtime win-x64 --self-contained true --output publish
+      - name: Package ZIP
+        if: github.event_name != 'pull_request'
+        run: Compress-Archive -Path publish\* -DestinationPath Stick-Figure-Windows.zip
+      - name: Upload downloadable app
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stick-Figure-Windows
+          path: Stick-Figure-Windows.zip
+          retention-days: 14
