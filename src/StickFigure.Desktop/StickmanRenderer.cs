@@ -77,13 +77,14 @@ public sealed class StickmanRenderer : IDisposable
 
         if (agent.Action == AgentAction.Socialize)
         {
-            if (face > 0) { elbowR = new Point(x + 24, ground - 115); handR = new Point(x + 36, ground - 145 - Math.Sin(agent.Pose.BodyBob + dt) * 7); }
-            else { elbowL = new Point(x - 24, ground - 115); handL = new Point(x - 36, ground - 145 - Math.Sin(agent.Pose.BodyBob + dt) * 7); }
+            if (face > 0) { elbowR = new Point(x + 24, ground - 115); handR = new Point(x + 36, ground - 112 - agent.Pose.ArmRaise * 36 - Math.Sin(agent.Pose.GesturePhase * 2.4) * 9); }
+            else { elbowL = new Point(x - 24, ground - 115); handL = new Point(x - 36, ground - 112 - agent.Pose.ArmRaise * 36 - Math.Sin(agent.Pose.GesturePhase * 2.4) * 9); }
         }
         else if (agent.Action == AgentAction.Draw)
         {
-            if (face > 0) { elbowR = new Point(x + 24, ground - 105); handR = new Point(x + 54, ground - 78); }
-            else { elbowL = new Point(x - 24, ground - 105); handL = new Point(x - 54, ground - 78); }
+            Point tip = _drawing is { Points.Count: > 0 } ? _drawing.Points[^1] : new Point(x + face * 54, ground - 78);
+            if (face > 0) { elbowR = new Point(x + 24, ground - 105); handR = tip; }
+            else { elbowL = new Point(x - 24, ground - 105); handL = tip; }
         }
         else if (agent.Action == AgentAction.PlayWithProp)
         {
