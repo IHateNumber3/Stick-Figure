@@ -9,10 +9,12 @@ public partial class MainWindow : Window
 {
     private Polyline? _activeStroke;
     private bool _isDrawing;
+    private ProceduralStickman? _stickman;
 
     public MainWindow()
     {
         InitializeComponent();
+        SizeChanged += (_, _) => _stickman?.Render();
     }
 
     private void DrawingCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -20,7 +22,6 @@ public partial class MainWindow : Window
         _isDrawing = true;
         DrawingCanvas.CaptureMouse();
         EmptyHint.Visibility = Visibility.Collapsed;
-
         var point = e.GetPosition(DrawingCanvas);
         _activeStroke = new Polyline
         {
@@ -39,28 +40,33 @@ public partial class MainWindow : Window
     {
         if (!_isDrawing || _activeStroke is null || e.LeftButton != MouseButtonState.Pressed)
             return;
-
         var point = e.GetPosition(DrawingCanvas);
         var previous = _activeStroke.Points[^1];
-
-        // Ignore tiny pointer jitter while preserving the hand-drawn feel.
         if ((point - previous).Length >= 1.2)
             _activeStroke.Points.Add(point);
     }
 
     private void DrawingCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_isDrawing)
-            return;
-
+        if (!_isDrawing) return;
         _isDrawing = false;
         DrawingCanvas.ReleaseMouseCapture();
         _activeStroke = null;
-        StatusText.Text = $"READY  •  {DrawingCanvas.Children.Count} STROKES";
+        StatusText.Text = $"READY  •  {DrawingCanvas.Children.Count} ELEMENTS";
+    }
+
+    private void SpawnButton_Click(object sender, RoutedEventArgs e)
+    {
+        _stickman?.Dispose();
+        _stickman = new ProceduralStickman(DrawingCanvas);
+        EmptyHint.Visibility = Visibility.Collapsed;
+        StatusText.Text = "STICKMAN SPAWNED  •  PROCEDURAL IDLE ANIMATION";
     }
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
+        _stickman?.Dispose();
+        _stickman = null;
         DrawingCanvas.Children.Clear();
         EmptyHint.Visibility = Visibility.Visible;
         StatusText.Text = "READY  •  CANVAS CLEARED";
