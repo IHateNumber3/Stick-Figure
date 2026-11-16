@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private ProceduralStickman? _stickman;
     private readonly List<PhysicsProp> _props = new();
     private readonly List<PhysicsOrb> _orbs = new();
+    private DesktopOverlayWindow? _overlay;
 
     public MainWindow()
     {
@@ -118,6 +119,28 @@ public partial class MainWindow : Window
         DrawingCanvas.Children.Clear();
         EmptyHint.Visibility = Visibility.Visible;
         StatusText.Text = "READY  •  CANVAS CLEARED";
+    }
+
+    private void DesktopButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_overlay is not null)
+        {
+            _overlay.Close();
+            _overlay = null;
+            DesktopButton.Content = "🖥 Desktop mode";
+            StatusText.Text = "DESKTOP COMPANION STOPPED";
+            return;
+        }
+
+        _overlay = new DesktopOverlayWindow();
+        _overlay.Closed += (_, _) =>
+        {
+            _overlay = null;
+            DesktopButton.Content = "🖥 Desktop mode";
+        };
+        _overlay.Show();
+        DesktopButton.Content = "✕ Stop desktop";
+        StatusText.Text = "DESKTOP COMPANION RUNNING  •  Ctrl+Shift+F12 TO CLOSE";
     }
 
     private void PenButton_Click(object sender, RoutedEventArgs e)
