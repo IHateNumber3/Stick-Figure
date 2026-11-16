@@ -118,6 +118,7 @@ public partial class MainWindow : Window
         _world.ClearAgents();
         foreach (var prop in _props) prop.Dispose();
         _props.Clear();
+        _world.ClearProps();
         foreach (var orb in _orbs) orb.Dispose();
         _orbs.Clear();
         DrawingCanvas.Children.Clear();
