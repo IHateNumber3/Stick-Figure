@@ -108,7 +108,7 @@ public sealed class StickmanAgent
             _ => 2
         };
         _socialElapsed = 0;
-        _drawPhase = _random.NextDouble() * Math.PI * 2;
+        _drawPhase = 0;
         if (Action == AgentAction.Draw) Renderer.BeginDrawing();
         if (Action == AgentAction.Jump && VerticalOffset == 0) _verticalVelocity = -350;
         if (Action == AgentAction.Wander || Action == AgentAction.Inspect)
@@ -154,6 +154,7 @@ public sealed class StickmanAgent
     {
         _drawPhase += dt * 3.2;
         double radius = 20 + Math.Sin(_drawPhase * 0.7) * 8;
+        if (_drawPhase >= Math.PI * 2) _goalElapsed = _goalDuration;
         double px = X + Facing * (54 + Math.Cos(_drawPhase) * radius);
         double py = GroundY - 78 + Math.Sin(_drawPhase * 1.35) * radius;
         Renderer.AddDrawingPoint(px, py);
