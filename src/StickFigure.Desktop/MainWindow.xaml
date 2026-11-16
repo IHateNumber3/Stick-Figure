@@ -19,6 +19,7 @@
                 <TextBlock Text="Procedural character playground" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,3,0,0"/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="SpawnButton" Content="＋  Stickman" Click="SpawnButton_Click" Padding="16,8" Margin="0,0,8,0"/>
                 <Button x:Name="PenButton" Content="✎  Draw" Click="PenButton_Click" Padding="16,8" Margin="0,0,8,0"/>
                 <Button x:Name="ClearButton" Content="Clear canvas" Click="ClearButton_Click" Padding="14,8"/>
             </StackPanel>
