@@ -35,18 +35,32 @@ public sealed class ProceduralStickman : IDisposable
     private readonly double _walkSpeed;
     private readonly double _personalityOffset;
     private readonly Brush _ink;
+    private readonly AgentWorld? _world;
+    private readonly AgentBrain _brain;
+    private readonly AgentMemory _memory = new();
+    private readonly AnimationController _animation = new();
+    private double _goalTime;
+    private double _targetX;
+    private double _socialGestureTime;
+    public double AgentX => _x;
+    public bool IsDisposed => _disposed;
+    public AgentAction CurrentAction => _animation.Action;
+    public int DecisionsMade => _brain.DecisionsMade;
 
     private const double FigureHeight = 178;
     private const double GroundMargin = 12;
     
     private const double Gravity = 900;
 
-    public ProceduralStickman(Canvas canvas, IReadOnlyList<PhysicsProp>? props = null, double startX = double.NaN, double walkSpeed = 74, double personalityOffset = 0, Color? color = null)
+    public ProceduralStickman(Canvas canvas, IReadOnlyList<PhysicsProp>? props = null, double startX = double.NaN, double walkSpeed = 74, double personalityOffset = 0, Color? color = null, AgentWorld? world = null)
     {
         _canvas = canvas;
         _props = props ?? Array.Empty<PhysicsProp>();
         _walkSpeed = walkSpeed;
         _personalityOffset = personalityOffset;
+        _world = world;
+        _brain = new AgentBrain((int)(personalityOffset * 101) + (int)(double.IsNaN(startX) ? 0 : startX));
+        _world?.Register(this);
         _ink = new SolidColorBrush(color ?? Color.FromRgb(235, 243, 250));
         _x = double.IsNaN(startX) ? Math.Max(100, canvas.ActualWidth / 2) : startX;
         _direction = personalityOffset % 2 == 0 ? 1 : -1;
@@ -94,91 +108,102 @@ public sealed class ProceduralStickman : IDisposable
         double width = _canvas.ActualWidth, height = _canvas.ActualHeight;
         if (width < 80 || height < 100) return;
 
+        _walking = false;
         if (_heldProp is not null)
         {
             _carryTime -= dt;
-            _phase += dt * 5;
             if (_carryTime <= 0)
             {
                 _heldProp.Throw(_direction * 245, -205);
                 _heldProp = null;
-                _walking = false;
-                _decisionTime = 0.45;
+                _brain.ReportOutcome(_memory, true);
+                _goalTime = 0.2;
             }
         }
         else
         {
-            _doodleCooldown -= dt;
-            if (_doodleProgress >= 0)
+            _goalTime -= dt;
+            if (_goalTime <= 0)
             {
-                _doodleProgress += dt * 4.2;
-                if (_doodleProgress >= Math.PI * 2)
+                var perception = _world?.Perceive(this, _x, width, _props)
+                    ?? new AgentPerception { X = _x, ScreenWidth = width, EdgeDistance = Math.Min(_x, width - _x) };
+                var goal = _brain.Decide(perception, _memory);
+                _animation.SetAction(goal.Action);
+                _targetX = goal.TargetX;
+                _goalTime = goal.Action switch
                 {
-                    _doodleProgress = -1;
-                    _doodleStroke = null;
-                    _doodleCooldown = 5.5;
-                }
-            }
-            else if (!_walking && _doodleCooldown <= 0)
-            {
-                _doodleProgress = 0;
-                _doodleStroke = new Polyline
-                {
-                    Stroke = new SolidColorBrush(Color.FromRgb(0, 212, 255)),
-                    StrokeThickness = 2.2,
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round,
-                    StrokeLineJoin = PenLineJoin.Round
+                    AgentAction.Explore => 2.0 + Random.Shared.NextDouble() * 2.5,
+                    AgentAction.Socialize => 2.4,
+                    AgentAction.Draw => 2.8,
+                    AgentAction.PlayWithProp => 3.5,
+                    _ => 1.6 + Random.Shared.NextDouble() * 2.2
                 };
-                _canvas.Children.Add(_doodleStroke);
-            }
-
-            _decisionTime -= dt;
-            if (_decisionTime <= 0)
-            {
-                _walking = !_walking;
-                _decisionTime = (_walking ? 1.7 : 0.45) + Math.Abs(_personalityOffset) * (_walking ? 0.55 : 0.18);
-                if (_walking && Random.Shared.NextDouble() < 0.35)
-                    _direction *= -1;
-            }
-
-            if (_walking)
-            {
-                _x += _direction * _walkSpeed * dt;
-                _phase += dt * 8.5;
-            }
-            else _phase += dt * 1.5;
-
-            // Look for a crate at hand-reach distance and pick it up.
-            foreach (var prop in _props)
-            {
-                if (prop.IsHeld) continue;
-                double dx = prop.CenterX - _x;
-                double dy = prop.CenterY - (_y + 153);
-                if (Math.Abs(dx) < 62 && Math.Abs(dy) < 34 && prop.TryGrab())
+                _socialGestureTime = 0;
+                if (goal.Action == AgentAction.Draw && _doodleProgress < 0)
                 {
-                    _heldProp = prop;
-                    _direction = dx >= 0 ? 1 : -1;
-                    _walking = false;
-                    _carryTime = 1.35;
-                    break;
-                }
-            }
-
-            // If a crate is close but not yet within reach, walk toward it.
-            if (_heldProp is null && _walking)
-            {
-                foreach (var prop in _props)
-                {
-                    if (prop.IsHeld) continue;
-                    double dx = prop.CenterX - _x;
-                    double dy = prop.CenterY - (_y + 153);
-                    if (Math.Abs(dx) < 105 && Math.Abs(dy) < 45)
+                    _doodleProgress = 0;
+                    _doodleStroke = new Polyline
                     {
-                        _direction = dx >= 0 ? 1 : -1;
-                        break;
-                    }
+                        Stroke = new SolidColorBrush(Color.FromRgb(0, 212, 255)),
+                        StrokeThickness = 2.2,
+                        StrokeStartLineCap = PenLineCap.Round,
+                        StrokeEndLineCap = PenLineCap.Round,
+                        StrokeLineJoin = PenLineJoin.Round
+                    };
+                    _canvas.Children.Add(_doodleStroke);
                 }
+            }
+
+            switch (_animation.Action)
+            {
+                case AgentAction.Explore:
+                    MoveToward(_targetX, dt);
+                    if (Math.Abs(_targetX - _x) < 18) _brain.ReportOutcome(_memory, true);
+                    break;
+                case AgentAction.Socialize:
+                    if (_world is not null)
+                    {
+                        var social = _world.Perceive(this, _x, width, _props);
+                        if (social.NearestAgent is not null)
+                        {
+                            if (social.AgentDistance > 82) MoveToward(social.NearestAgent.AgentX, dt);
+                            else
+                            {
+                                _direction = social.AgentDeltaX >= 0 ? 1 : -1;
+                                _socialGestureTime += dt;
+                                _phase += dt * 2.8;
+                                if (_socialGestureTime > 1.2) _brain.ReportOutcome(_memory, true);
+                            }
+                        }
+                        else _brain.ReportOutcome(_memory, false);
+                    }
+                    break;
+                case AgentAction.Draw:
+                    _doodleProgress += dt * 2.7;
+                    if (_doodleProgress >= Math.PI * 2)
+                    {
+                        _doodleProgress = -1;
+                        _doodleStroke = null;
+                        _brain.ReportOutcome(_memory, true);
+                    }
+                    break;
+                case AgentAction.PlayWithProp:
+                    var targetProp = _brain.CurrentGoal.TargetProp;
+                    if (targetProp is not null && !targetProp.IsHeld)
+                    {
+                        if (Math.Abs(targetProp.CenterX - _x) < 62 && Math.Abs(targetProp.CenterY - (_y + 153)) < 50 && targetProp.TryGrab())
+                        {
+                            _heldProp = targetProp;
+                            _direction = targetProp.CenterX >= _x ? 1 : -1;
+                            _carryTime = 1.15;
+                        }
+                        else MoveToward(targetProp.CenterX, dt);
+                    }
+                    break;
+                case AgentAction.Rest:
+                    _phase += dt * 0.7;
+                    if (_goalTime < 0.15) _brain.ReportOutcome(_memory, true);
+                    break;
             }
         }
 
@@ -191,15 +216,27 @@ public sealed class ProceduralStickman : IDisposable
         _y += _velocityY * dt;
         if (_y >= groundY) { _y = groundY; _velocityY = 0; }
 
+        _animation.Update(dt, _walking);
+        _phase = _animation.Phase;
         Render();
+    }
+
+    private void MoveToward(double targetX, double dt)
+    {
+        if (double.IsNaN(targetX)) return;
+        double delta = targetX - _x;
+        if (Math.Abs(delta) < 16) return;
+        _direction = delta > 0 ? 1 : -1;
+        _x += _direction * _walkSpeed * dt;
+        _walking = true;
     }
 
     public void Render()
     {
         if (_disposed) return;
-        double bob = _walking ? Math.Abs(Math.Sin(_phase * 2)) * 4 : Math.Sin(_phase) * 1.5;
+        double bob = _walking ? Math.Abs(Math.Sin(_phase * 2)) * 4 : Math.Sin(_phase) * (_animation.IsResting ? 0.6 : 1.5);
         double stride = _walking ? Math.Sin(_phase) : 0;
-        double armSwing = _walking ? Math.Sin(_phase + Math.PI) * 20 : Math.Sin(_phase) * 3;
+        double armSwing = _walking ? Math.Sin(_phase + Math.PI) * 20 : _animation.IsSocializing ? Math.Sin(_phase * 3) * 13 : Math.Sin(_phase) * 3;
 
         P head = new(_x, _y + 16 - bob);
         P neck = new(_x, _y + 37 - bob);
@@ -210,7 +247,7 @@ public sealed class ProceduralStickman : IDisposable
         P elbowR = new(_x + 17 * _direction - armSwing * 0.35, _y + 66 - bob);
         P handR = new(_x + 25 * _direction - armSwing, _y + 84 - bob);
 
-        if (_doodleProgress >= 0 && _heldProp is null)
+        if ((_doodleProgress >= 0 || _animation.IsSocializing) && _heldProp is null)
         {
             double angle = _doodleProgress;
             P drawingHand = new(_x + _direction * (65 + Math.Cos(angle) * 19),
@@ -257,6 +294,7 @@ public sealed class ProceduralStickman : IDisposable
         if (_disposed) return;
         _disposed = true;
         _timer.Stop();
+        _world?.Unregister(this);
         _heldProp?.Drop();
         _heldProp = null;
         _canvas.Children.Remove(_head);
