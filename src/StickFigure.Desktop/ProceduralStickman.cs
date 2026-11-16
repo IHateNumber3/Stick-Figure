@@ -99,6 +99,31 @@ public sealed class ProceduralStickman : IDisposable
         }
         else
         {
+            _doodleCooldown -= dt;
+            if (_doodleProgress >= 0)
+            {
+                _doodleProgress += dt * 4.2;
+                if (_doodleProgress >= Math.PI * 2)
+                {
+                    _doodleProgress = -1;
+                    _doodleStroke = null;
+                    _doodleCooldown = 5.5;
+                }
+            }
+            else if (!_walking && _doodleCooldown <= 0)
+            {
+                _doodleProgress = 0;
+                _doodleStroke = new Polyline
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(0, 212, 255)),
+                    StrokeThickness = 2.2,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    StrokeLineJoin = PenLineJoin.Round
+                };
+                _canvas.Children.Add(_doodleStroke);
+            }
+
             _decisionTime -= dt;
             if (_decisionTime <= 0)
             {
@@ -175,6 +200,16 @@ public sealed class ProceduralStickman : IDisposable
         P handL = new(_x - 25 * _direction + armSwing, _y + 84 - bob);
         P elbowR = new(_x + 17 * _direction - armSwing * 0.35, _y + 66 - bob);
         P handR = new(_x + 25 * _direction - armSwing, _y + 84 - bob);
+
+        if (_doodleProgress >= 0 && _heldProp is null)
+        {
+            double angle = _doodleProgress;
+            P drawingHand = new(_x + _direction * (65 + Math.Cos(angle) * 19),
+                                _y + 112 + Math.Sin(angle) * 19);
+            if (_direction > 0) { elbowR = new(_x + 22, _y + 88); handR = drawingHand; }
+            else { elbowL = new(_x - 22, _y + 88); handL = drawingHand; }
+            _doodleStroke?.Points.Add(new Point(drawingHand.X, drawingHand.Y));
+        }
 
         if (_heldProp is not null)
         {
