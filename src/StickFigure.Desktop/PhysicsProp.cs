@@ -8,19 +8,21 @@ using System.Windows.Threading;
 
 namespace StickFigure;
 
-/// <summary>A draggable rectangular prop with lightweight gravity and floor friction.</summary>
+/// <summary>A draggable crate with lightweight gravity and a grab/throw state.</summary>
 public sealed class PhysicsProp : IDisposable
 {
     private readonly Canvas _canvas;
     private readonly Rectangle _shape;
     private readonly DispatcherTimer _timer;
     private bool _dragging;
+    private bool _held;
     private Point _dragOffset;
     private bool _disposed;
     private double _x, _y, _vx, _vy;
 
     public double CenterX => _x + Width / 2;
     public double CenterY => _y + Height / 2;
+    public bool IsHeld => _held;
     public const double Width = 48;
     public const double Height = 42;
 
@@ -47,6 +49,7 @@ public sealed class PhysicsProp : IDisposable
 
     private void BeginDrag(object sender, MouseButtonEventArgs e)
     {
+        if (_held) return;
         _dragging = true;
         _dragOffset = e.GetPosition(_canvas) - new Point(_x, _y);
         _shape.CaptureMouse();
@@ -70,16 +73,48 @@ public sealed class PhysicsProp : IDisposable
         e.Handled = true;
     }
 
+    public bool TryGrab()
+    {
+        if (_disposed || _dragging || _held) return false;
+        _held = true;
+        _vx = _vy = 0;
+        return true;
+    }
+
+    public void MoveWhileHeld(double centerX, double centerY)
+    {
+        if (!_held || _disposed) return;
+        _x = centerX - Width / 2;
+        _y = centerY - Height / 2;
+        Render();
+    }
+
+    public void Throw(double velocityX, double velocityY = -180)
+    {
+        if (!_held || _disposed) return;
+        _held = false;
+        _vx = velocityX;
+        _vy = velocityY;
+    }
+
+    public void Drop()
+    {
+        if (!_held) return;
+        _held = false;
+        _vx = 0;
+        _vy = 0;
+    }
+
     public void Push(double direction, double strength = 165)
     {
-        if (_dragging || _disposed) return;
+        if (_dragging || _held || _disposed) return;
         _vx += Math.Sign(direction) * strength;
         _vy -= 28;
     }
 
     private void Step()
     {
-        if (_disposed || _dragging) return;
+        if (_disposed || _dragging || _held) return;
         const double dt = 1.0 / 60.0;
         _vy += 820 * dt;
         _x += _vx * dt;
@@ -99,7 +134,8 @@ public sealed class PhysicsProp : IDisposable
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true; _timer.Stop();
+        _disposed = true;
+        _timer.Stop();
         _canvas.Children.Remove(_shape);
     }
 }
