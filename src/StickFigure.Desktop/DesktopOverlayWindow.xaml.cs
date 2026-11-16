@@ -1,24 +1,26 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
-using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace StickFigure;
 
 public partial class DesktopOverlayWindow : Window
 {
-    private readonly List<ProceduralStickman> _stickmen = new();
-    private readonly AgentWorld _world = new();
+    private AgentWorld? _world;
     private HwndSource? _source;
+    private DispatcherTimer? _cursorTimer;
     private const int HotkeyId = 0x51F1;
     private const int WmHotkey = 0x0312;
-    private const uint ModControl = 0x0002, ModShift = 0x0004;
-    private const uint VkF12 = 0x7B;
+    private const uint ModControl = 0x0002, ModShift = 0x0004, VkF12 = 0x7B;
     private const int GwlExStyle = -20;
     private const int WsExTransparent = 0x20, WsExToolWindow = 0x80, WsExLayered = 0x80000;
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint { public int X; public int Y; }
+
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out NativePoint point);
     [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint vk);
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")] private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int index);
@@ -32,29 +34,34 @@ public partial class DesktopOverlayWindow : Window
         Width = SystemParameters.VirtualScreenWidth;
         Height = SystemParameters.VirtualScreenHeight;
         SourceInitialized += OnSourceInitialized;
-        Loaded += OnOverlayLoaded;
-        Closed += (_, _) => { foreach (var stickman in _stickmen) stickman.Dispose(); _stickmen.Clear(); };
+        Loaded += OnLoaded;
+        Closed += (_, _) => { _cursorTimer?.Stop(); _world?.Dispose(); };
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         var handle = new WindowInteropHelper(this).Handle;
-        var style = GetWindowLongPtr(handle, GwlExStyle).ToInt64();
+        long style = GetWindowLongPtr(handle, GwlExStyle).ToInt64();
         SetWindowLongPtr(handle, GwlExStyle, new IntPtr(style | WsExTransparent | WsExToolWindow | WsExLayered));
         _source = HwndSource.FromHwnd(handle);
         _source?.AddHook(WindowProc);
         RegisterHotKey(handle, HotkeyId, ModControl | ModShift, VkF12);
     }
 
-    private void OnOverlayLoaded(object sender, RoutedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        var colors = new[] { Color.FromRgb(235,243,250), Color.FromRgb(0,212,255), Color.FromRgb(0,255,153), Color.FromRgb(255,190,90) };
-        var width = OverlayCanvas.ActualWidth;
-        for (int i = 0; i < 4; i++)
+        _world = new AgentWorld(OverlayCanvas);
+        for (int i = 0; i < 5; i++)
+            _world.AddAgent(OverlayCanvas.ActualWidth * (i + 1) / 6.0);
+
+        _cursorTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(45) };
+        _cursorTimer.Tick += (_, _) =>
         {
-            var x = width * (i + 1) / 5.0;
-            _stickmen.Add(new ProceduralStickman(OverlayCanvas, startX: x, walkSpeed: 48 + i * 17, personalityOffset: i, color: colors[i], world: _world));
-        }
+            if (_world is null || !GetCursorPos(out var p)) return;
+            _world.SetCursor(p.X - SystemParameters.VirtualScreenLeft,
+                             p.Y - SystemParameters.VirtualScreenTop);
+        };
+        _cursorTimer.Start();
     }
 
     private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
