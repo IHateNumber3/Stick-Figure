@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -28,6 +29,9 @@ public sealed class ProceduralStickman : IDisposable
     private bool _walking = true;
     private bool _disposed;
     private PhysicsProp? _heldProp;
+    private Polyline? _doodleStroke;
+    private double _doodleProgress = -1;
+    private double _doodleCooldown = 4;
 
     private const double FigureHeight = 178;
     private const double GroundMargin = 12;
