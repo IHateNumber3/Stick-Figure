@@ -4,7 +4,7 @@ namespace StickFigure;
 
 public readonly record struct AgentPose(
     double BodyBob, double LegSwing, double ArmSwing,
-    double TorsoLean, double ArmRaise, double HeadTilt);
+    double TorsoLean, double ArmRaise, double HeadTilt, double GesturePhase);
 
 /// <summary>Maps intent and motion state to a procedural hand-drawn pose.</summary>
 public sealed class AnimationController
@@ -54,6 +54,6 @@ public sealed class AnimationController
             AgentAction.PlayWithProp => 0.35,
             _ => 0
         };
-        return new AgentPose(bob, legs, arms, lean, raise, action == AgentAction.Rest ? 0.12 : 0);
+        return new AgentPose(bob, legs, arms, lean, raise, action == AgentAction.Rest ? 0.12 : 0, _phase);
     }
 }
