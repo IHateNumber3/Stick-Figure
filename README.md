@@ -8,6 +8,8 @@ A Windows desktop sandbox for procedural, hand-drawn stick figures.
 - WPF desktop application targeting .NET 8.
 - Dark drawing workspace with freehand stroke input.
 - Stroke data is stored as editable vector points rather than flattened sprites.
+- A procedural stickman can be spawned; its head, torso, arms and legs are vector shapes updated by a 60 Hz idle animation loop.
+- A Windows GitHub Actions workflow builds the solution on pushes and pull requests.
 - Clear canvas and basic project structure.
 
 ## Planned milestones
