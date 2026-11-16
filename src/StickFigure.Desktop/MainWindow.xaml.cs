@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     private bool _isDrawing;
     private ProceduralStickman? _stickman;
     private readonly List<PhysicsProp> _props = new();
+    private readonly List<PhysicsOrb> _orbs = new();
 
     public MainWindow()
     {
@@ -52,8 +53,42 @@ public partial class MainWindow : Window
         if (!_isDrawing) return;
         _isDrawing = false;
         DrawingCanvas.ReleaseMouseCapture();
+        if (_activeStroke is not null)
+        {
+            var points = _activeStroke.Points.ToList();
+            var bounds = GetBounds(points);
+            var recognized = ShapeRecognizer.Recognize(points);
+            if (recognized != RecognizedShape.None)
+            {
+                DrawingCanvas.Children.Remove(_activeStroke);
+                if (recognized == RecognizedShape.Rectangle)
+                {
+                    var prop = new PhysicsProp(DrawingCanvas,
+                        bounds.Left + (bounds.Width - PhysicsProp.Width) / 2,
+                        bounds.Top + (bounds.Height - PhysicsProp.Height) / 2);
+                    _props.Add(prop);
+                    StatusText.Text = "SHAPE RECOGNIZED  •  PHYSICS CRATE";
+                }
+                else
+                {
+                    var orb = new PhysicsOrb(DrawingCanvas,
+                        bounds.Left + bounds.Width / 2,
+                        bounds.Top + bounds.Height / 2,
+                        Math.Min(bounds.Width, bounds.Height) * 0.82);
+                    _orbs.Add(orb);
+                    StatusText.Text = "SHAPE RECOGNIZED  •  BOUNCING ORB";
+                }
+            }
+            else StatusText.Text = $"FREEHAND  •  {DrawingCanvas.Children.Count} ELEMENTS";
+        }
         _activeStroke = null;
-        StatusText.Text = $"READY  •  {DrawingCanvas.Children.Count} ELEMENTS";
+    }
+
+    private static Rect GetBounds(IReadOnlyList<Point> points)
+    {
+        double minX = points.Min(p => p.X), maxX = points.Max(p => p.X);
+        double minY = points.Min(p => p.Y), maxY = points.Max(p => p.Y);
+        return new Rect(new Point(minX, minY), new Point(maxX, maxY));
     }
 
     private void SpawnButton_Click(object sender, RoutedEventArgs e)
@@ -78,6 +113,8 @@ public partial class MainWindow : Window
         _stickman = null;
         foreach (var prop in _props) prop.Dispose();
         _props.Clear();
+        foreach (var orb in _orbs) orb.Dispose();
+        _orbs.Clear();
         DrawingCanvas.Children.Clear();
         EmptyHint.Visibility = Visibility.Visible;
         StatusText.Text = "READY  •  CANVAS CLEARED";
