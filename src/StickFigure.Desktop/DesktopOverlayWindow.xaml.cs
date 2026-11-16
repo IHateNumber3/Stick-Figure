@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace StickFigure;
 
@@ -29,6 +31,7 @@ public partial class DesktopOverlayWindow : Window
         Width = SystemParameters.VirtualScreenWidth;
         Height = SystemParameters.VirtualScreenHeight;
         SourceInitialized += OnSourceInitialized;
+        Loaded += OnOverlayLoaded;
         Closed += (_, _) => { foreach (var stickman in _stickmen) stickman.Dispose(); _stickmen.Clear(); };
     }
 
@@ -40,6 +43,10 @@ public partial class DesktopOverlayWindow : Window
         _source = HwndSource.FromHwnd(handle);
         _source?.AddHook(WindowProc);
         RegisterHotKey(handle, HotkeyId, ModControl | ModShift, VkF12);
+    }
+
+    private void OnOverlayLoaded(object sender, RoutedEventArgs e)
+    {
         var colors = new[] { Color.FromRgb(235,243,250), Color.FromRgb(0,212,255), Color.FromRgb(0,255,153), Color.FromRgb(255,190,90) };
         var width = OverlayCanvas.ActualWidth;
         for (int i = 0; i < 4; i++)
