@@ -6,21 +6,23 @@ A Windows desktop sandbox for procedural, hand-drawn stick figures.
 
 - WPF desktop application targeting .NET 8.
 - Dark drawing workspace with freehand stroke input.
-- Vector stickman with articulated arms and legs, idle/walk animation, gravity and floor collision.
+- Articulated stickman renderer with action-driven movement and pose animation.
 - Draggable crate props with gravity, friction, wall bounce and mouse interaction.
-- Autonomous crate interaction: the stickman approaches a nearby crate, grabs it, carries it briefly and throws it.
-- Autonomous doodling: while idle, the stickman occasionally reaches out and draws a small circular sketch directly onto the canvas.
+- Agent architecture: utility-scored goal selection, environmental perception, short-term action memory, adaptive action preferences and an animation controller.
+- Agents can explore toward chosen destinations, approach and acknowledge nearby agents, draw, rest and seek nearby props.
+- Desktop mode creates four independently deciding agents sharing one perception world; they can notice and approach one another rather than following a single shared script.
+- Agents can approach a crate, pick it up, carry it and throw it.
 - GitHub Actions builds the solution on Windows.
 
-These behaviours are procedural simulations. The stickman does not have consciousness or general-purpose AI.
+This is a lightweight, local agent simulation—not a neural language model, consciousness or general-purpose intelligence. Decisions are made by utility scoring over perceived surroundings, needs, personality traits and recent action history. Memory adjusts action preferences based on outcomes; it does not train a neural network.
 
 ## Planned next milestones
 
 1. **Drawing engine:** smoothing, curves, eraser, selection, undo/redo and a reusable stroke model.
 2. **Shape recognition:** classify simple user-drawn strokes (lines, circles, rectangles) and convert them into editable scene objects.
 3. **Character rig:** inverse kinematics, hand grips, expressive poses and more natural motion.
-4. **Behaviour system:** traits, goals, simple memory and interactions between multiple actors.
-5. **Desktop interaction:** opt-in, user-controlled interaction with selected Windows applications.
+4. **Richer agent behaviour:** additional goals, object manipulation, social behaviours and event-driven reactions.
+5. **Desktop interaction:** opt-in, user-controlled interaction with selected Windows applications and cursor events.
 
 ## Build
 
